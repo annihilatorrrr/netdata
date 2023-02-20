@@ -115,7 +115,7 @@ class Service(SimpleService):
             return False
 
         if not (os.path.isfile(self.named_stats_path) and os.access(self.named_stats_path, os.R_OK)):
-            self.error('Cannot access file %s' % self.named_stats_path)
+            self.error(f'Cannot access file {self.named_stats_path}')
             return False
 
         run_rndc = Popen([self.rndc, 'stats'], shell=False)
@@ -123,7 +123,7 @@ class Service(SimpleService):
 
         if not run_rndc.returncode:
             return True
-        self.error('Not enough permissions to run "%s stats"' % self.rndc)
+        self.error(f'Not enough permissions to run "{self.rndc} stats"')
         return False
 
     def _get_raw_data(self):
@@ -131,7 +131,7 @@ class Service(SimpleService):
         Run 'rndc stats' and read last dump from named.stats
         :return: dict
         """
-        result = dict()
+        result = {}
         try:
             current_size = os.path.getsize(self.named_stats_path)
             run_rndc = Popen([self.rndc, 'stats'], shell=False)
@@ -157,11 +157,10 @@ class Service(SimpleService):
 
         if raw_data is None:
             return None
-        parsed = dict()
-        for stat in STATS:
-            parsed[stat] = parse_stats(field=stat,
-                                       named_stats=raw_data['stats'])
-
+        parsed = {
+            stat: parse_stats(field=stat, named_stats=raw_data['stats'])
+            for stat in STATS
+        }
         self.data.update(nms_mapper(data=parsed['Name Server Statistics']))
 
         for elem in zip(['Incoming Queries', 'Outgoing Queries'], ['incoming_queries', 'outgoing_queries']):
@@ -208,7 +207,7 @@ def parse_stats(field, named_stats):
     result:
     {'A', 1214961, 'NS': 75, 'CNAME': 2, 'SOA': 2897, ...}
     """
-    data = dict()
+    data = {}
     ns = iter(named_stats)
     for line in ns:
         if field not in line:

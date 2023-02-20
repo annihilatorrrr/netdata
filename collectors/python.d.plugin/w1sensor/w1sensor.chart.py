@@ -61,23 +61,21 @@ class Service(SimpleService):
         for file_name in file_names:
             if file_name[2] != '-':
                 continue
-            if not file_name[0:2] in THERM_FAMILY:
+            if file_name[:2] not in THERM_FAMILY:
                 continue
 
             self.probes.append(file_name)
             identifier = file_name[3:]
             name = identifier
-            config_name = self.configuration.get('name_' + identifier)
-            if config_name:
+            if config_name := self.configuration.get(f'name_{identifier}'):
                 name = config_name
-            lines.append(['w1sensor_temp_' + identifier, name, 'absolute',
-                          1, 10])
+            lines.append([f'w1sensor_temp_{identifier}', name, 'absolute', 1, 10])
         self.definitions['temp']['lines'] = lines
         return len(self.probes) > 0
 
     def get_data(self):
         """Return data read from sensors."""
-        data = dict()
+        data = {}
 
         for file_name in self.probes:
             file_path = W1_DIR + file_name + '/w1_slave'
@@ -85,12 +83,11 @@ class Service(SimpleService):
             try:
                 with open(file_path, 'r') as device_file:
                     for line in device_file:
-                        matched = RE_TEMP.search(line)
-                        if matched:
+                        if matched := RE_TEMP.search(line):
                             # Round to one decimal digit to filter-out noise
                             value = round(int(matched.group(1)) / 1000., 1)
                             value = int(value * 10)
-                            data['w1sensor_temp_' + identifier] = value
+                            data[f'w1sensor_temp_{identifier}'] = value
             except (OSError, IOError) as err:
                 self.error(err)
                 continue

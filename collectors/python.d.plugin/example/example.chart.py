@@ -38,9 +38,9 @@ class Service(SimpleService):
         return True
 
     def get_data(self):
-        data = dict()
+        data = {}
 
-        for i in range(0, self.num_lines):
+        for i in range(self.num_lines):
             dimension_id = ''.join(['random', str(i)])
 
             if dimension_id not in self.charts['random']:

@@ -147,10 +147,7 @@ class Emitter(object):
     def increase_indent(self, flow=False, indentless=False):
         self.indents.append(self.indent)
         if self.indent is None:
-            if flow:
-                self.indent = self.best_indent
-            else:
-                self.indent = 0
+            self.indent = self.best_indent if flow else 0
         elif not indentless:
             self.indent += self.best_indent
 
@@ -159,17 +156,15 @@ class Emitter(object):
     # Stream handlers.
 
     def expect_stream_start(self):
-        if isinstance(self.event, StreamStartEvent):
-            if self.event.encoding and not getattr(self.stream, 'encoding', None):
-                self.encoding = self.event.encoding
-            self.write_stream_start()
-            self.state = self.expect_first_document_start
-        else:
-            raise EmitterError("expected StreamStartEvent, but got %s"
-                    % self.event)
+        if not isinstance(self.event, StreamStartEvent):
+            raise EmitterError(f"expected StreamStartEvent, but got {self.event}")
+        if self.event.encoding and not getattr(self.stream, 'encoding', None):
+            self.encoding = self.event.encoding
+        self.write_stream_start()
+        self.state = self.expect_first_document_start
 
     def expect_nothing(self):
-        raise EmitterError("expected nothing, but got %s" % self.event)
+        raise EmitterError(f"expected nothing, but got {self.event}")
 
     # Document handlers.
 
@@ -210,20 +205,17 @@ class Emitter(object):
             self.write_stream_end()
             self.state = self.expect_nothing
         else:
-            raise EmitterError("expected DocumentStartEvent, but got %s"
-                    % self.event)
+            raise EmitterError(f"expected DocumentStartEvent, but got {self.event}")
 
     def expect_document_end(self):
-        if isinstance(self.event, DocumentEndEvent):
+        if not isinstance(self.event, DocumentEndEvent):
+            raise EmitterError(f"expected DocumentEndEvent, but got {self.event}")
+        self.write_indent()
+        if self.event.explicit:
+            self.write_indicator(u'...', True)
             self.write_indent()
-            if self.event.explicit:
-                self.write_indicator(u'...', True)
-                self.write_indent()
-            self.flush_stream()
-            self.state = self.expect_document_start
-        else:
-            raise EmitterError("expected DocumentEndEvent, but got %s"
-                    % self.event)
+        self.flush_stream()
+        self.state = self.expect_document_start
 
     def expect_document_root(self):
         self.states.append(self.expect_document_end)
@@ -246,18 +238,18 @@ class Emitter(object):
                 self.expect_scalar()
             elif isinstance(self.event, SequenceStartEvent):
                 if self.flow_level or self.canonical or self.event.flow_style   \
-                        or self.check_empty_sequence():
+                            or self.check_empty_sequence():
                     self.expect_flow_sequence()
                 else:
                     self.expect_block_sequence()
             elif isinstance(self.event, MappingStartEvent):
                 if self.flow_level or self.canonical or self.event.flow_style   \
-                        or self.check_empty_mapping():
+                            or self.check_empty_mapping():
                     self.expect_flow_mapping()
                 else:
                     self.expect_block_mapping()
         else:
-            raise EmitterError("expected NodeEvent, but got %s" % self.event)
+            raise EmitterError(f"expected NodeEvent, but got {self.event}")
 
     def expect_alias(self):
         if self.event.anchor is None:
@@ -481,10 +473,9 @@ class Emitter(object):
             if self.event.implicit[0] and tag is None:
                 tag = u'!'
                 self.prepared_tag = None
-        else:
-            if (not self.canonical or tag is None) and self.event.implicit:
-                self.prepared_tag = None
-                return
+        elif (not self.canonical or tag is None) and self.event.implicit:
+            self.prepared_tag = None
+            return
         if tag is None:
             raise EmitterError("tag is not specified")
         if self.prepared_tag is None:
@@ -498,20 +489,37 @@ class Emitter(object):
             self.analysis = self.analyze_scalar(self.event.value)
         if self.event.style == '"' or self.canonical:
             return '"'
-        if not self.event.style and self.event.implicit[0]:
-            if (not (self.simple_key_context and
-                    (self.analysis.empty or self.analysis.multiline))
-                and (self.flow_level and self.analysis.allow_flow_plain
-                    or (not self.flow_level and self.analysis.allow_block_plain))):
-                return ''
-        if self.event.style and self.event.style in '|>':
-            if (not self.flow_level and not self.simple_key_context
-                    and self.analysis.allow_block):
-                return self.event.style
-        if not self.event.style or self.event.style == '\'':
-            if (self.analysis.allow_single_quoted and
-                    not (self.simple_key_context and self.analysis.multiline)):
-                return '\''
+        if (
+            not self.event.style
+            and self.event.implicit[0]
+            and (
+                not (
+                    self.simple_key_context
+                    and (self.analysis.empty or self.analysis.multiline)
+                )
+                and (
+                    self.flow_level
+                    and self.analysis.allow_flow_plain
+                    or (not self.flow_level and self.analysis.allow_block_plain)
+                )
+            )
+        ):
+            return ''
+        if (
+            self.event.style
+            and self.event.style in '|>'
+            and (
+                not self.flow_level
+                and not self.simple_key_context
+                and self.analysis.allow_block
+            )
+        ):
+            return self.event.style
+        if (not self.event.style or self.event.style == '\'') and (
+            self.analysis.allow_single_quoted
+            and not (self.simple_key_context and self.analysis.multiline)
+        ):
+            return '\''
         return '"'
 
     def process_scalar(self):
@@ -567,15 +575,14 @@ class Emitter(object):
         while end < len(prefix):
             ch = prefix[end]
             if u'0' <= ch <= u'9' or u'A' <= ch <= u'Z' or u'a' <= ch <= u'z'   \
-                    or ch in u'-;/?!:@&=+$,_.~*\'()[]':
+                        or ch in u'-;/?!:@&=+$,_.~*\'()[]':
                 end += 1
             else:
                 if start < end:
                     chunks.append(prefix[start:end])
                 start = end = end+1
                 data = ch.encode('utf-8')
-                for ch in data:
-                    chunks.append(u'%%%02X' % ord(ch))
+                chunks.extend(u'%%%02X' % ord(ch) for ch in data)
         if start < end:
             chunks.append(prefix[start:end])
         return u''.join(chunks)
@@ -591,7 +598,7 @@ class Emitter(object):
         prefixes.sort()
         for prefix in prefixes:
             if tag.startswith(prefix)   \
-                    and (prefix == u'!' or len(prefix) < len(tag)):
+                        and (prefix == u'!' or len(prefix) < len(tag)):
                 handle = self.tag_prefixes[prefix]
                 suffix = tag[len(prefix):]
         chunks = []
@@ -599,23 +606,19 @@ class Emitter(object):
         while end < len(suffix):
             ch = suffix[end]
             if u'0' <= ch <= u'9' or u'A' <= ch <= u'Z' or u'a' <= ch <= u'z'   \
-                    or ch in u'-;/?:@&=+$,_.~*\'()[]'   \
-                    or (ch == u'!' and handle != u'!'):
+                        or ch in u'-;/?:@&=+$,_.~*\'()[]'   \
+                        or (ch == u'!' and handle != u'!'):
                 end += 1
             else:
                 if start < end:
                     chunks.append(suffix[start:end])
                 start = end = end+1
                 data = ch.encode('utf-8')
-                for ch in data:
-                    chunks.append(u'%%%02X' % ord(ch))
+                chunks.extend(u'%%%02X' % ord(ch) for ch in data)
         if start < end:
             chunks.append(suffix[start:end])
         suffix_text = u''.join(chunks)
-        if handle:
-            return u'%s%s' % (handle, suffix_text)
-        else:
-            return u'!<%s>' % suffix_text
+        return f'{handle}{suffix_text}' if handle else f'!<{suffix_text}>'
 
     def prepare_anchor(self, anchor):
         if not anchor:
@@ -802,10 +805,7 @@ class Emitter(object):
 
     def write_indicator(self, indicator, need_whitespace,
             whitespace=False, indention=False):
-        if self.whitespace or not need_whitespace:
-            data = indicator
-        else:
-            data = u' '+indicator
+        data = indicator if self.whitespace or not need_whitespace else f' {indicator}'
         self.whitespace = whitespace
         self.indention = self.indention and indention
         self.column += len(data)
@@ -866,7 +866,7 @@ class Emitter(object):
             if spaces:
                 if ch is None or ch != u' ':
                     if start+1 == end and self.column > self.best_width and split   \
-                            and start != 0 and end != len(text):
+                                and start != 0 and end != len(text):
                         self.write_indent()
                     else:
                         data = text[start:end]
@@ -886,15 +886,15 @@ class Emitter(object):
                             self.write_line_break(br)
                     self.write_indent()
                     start = end
-            else:
-                if ch is None or ch in u' \n\x85\u2028\u2029' or ch == u'\'':
-                    if start < end:
-                        data = text[start:end]
-                        self.column += len(data)
-                        if self.encoding:
-                            data = data.encode(self.encoding)
-                        self.stream.write(data)
-                        start = end
+            elif (
+                ch is None or ch in u' \n\x85\u2028\u2029' or ch == u'\''
+            ) and start < end:
+                data = text[start:end]
+                self.column += len(data)
+                if self.encoding:
+                    data = data.encode(self.encoding)
+                self.stream.write(data)
+                start = end
             if ch == u'\'':
                 data = u'\'\''
                 self.column += 2
@@ -934,7 +934,7 @@ class Emitter(object):
             if end < len(text):
                 ch = text[end]
             if ch is None or ch in u'"\\\x85\u2028\u2029\uFEFF' \
-                    or not (u'\x20' <= ch <= u'\x7E'
+                        or not (u'\x20' <= ch <= u'\x7E'
                         or (self.allow_unicode
                             and (u'\xA0' <= ch <= u'\uD7FF'
                                 or u'\uE000' <= ch <= u'\uFFFD'))):
@@ -960,10 +960,9 @@ class Emitter(object):
                     self.stream.write(data)
                     start = end+1
             if 0 < end < len(text)-1 and (ch == u' ' or start >= end)   \
-                    and self.column+(end-start) > self.best_width and split:
+                        and self.column+(end-start) > self.best_width and split:
                 data = text[start:end]+u'\\'
-                if start < end:
-                    start = end
+                start = max(start, end)
                 self.column += len(data)
                 if self.encoding:
                     data = data.encode(self.encoding)

@@ -102,12 +102,10 @@ class Service(UrlService):
             self.definitions = dict(MEMSTATS_CHARTS)
             self.order = list(MEMSTATS_ORDER)
         else:
-            self.definitions = dict()
-            self.order = list()
+            self.definitions = {}
+            self.order = []
 
-        # if extra charts are defined, parse their config
-        extra_charts = self.configuration.get('extra_charts')
-        if extra_charts:
+        if extra_charts := self.configuration.get('extra_charts'):
             self._parse_extra_charts_config(extra_charts)
 
     def check(self):
@@ -129,29 +127,29 @@ class Service(UrlService):
     def _parse_extra_charts_config(self, extra_charts_config):
 
         # a place to store the expvar keys and their types
-        self.expvars = list()
+        self.expvars = []
 
         for chart in extra_charts_config:
 
-            chart_dict = dict()
             chart_id = chart.get('id')
             chart_lines = chart.get('lines')
-            chart_opts = chart.get('options', dict())
+            chart_opts = chart.get('options', {})
 
             if not all([chart_id, chart_lines]):
                 self.info('Chart {0} has no ID or no lines defined, skipping'.format(chart))
                 continue
 
-            chart_dict['options'] = [
-                chart_opts.get('name', ''),
-                chart_opts.get('title', ''),
-                chart_opts.get('units', ''),
-                chart_opts.get('family', ''),
-                chart_opts.get('context', ''),
-                chart_opts.get('chart_type', 'line')
-            ]
-            chart_dict['lines'] = list()
-
+            chart_dict = {
+                'options': [
+                    chart_opts.get('name', ''),
+                    chart_opts.get('title', ''),
+                    chart_opts.get('units', ''),
+                    chart_opts.get('family', ''),
+                    chart_opts.get('context', ''),
+                    chart_opts.get('chart_type', 'line'),
+                ],
+                'lines': [],
+            }
             # add the lines to the chart
             for line in chart_lines:
 
@@ -196,9 +194,9 @@ class Service(UrlService):
 
         data = json.loads(raw_data)
 
-        expvars = dict()
+        expvars = {}
         if self.configuration.get('collect_memstats'):
-            expvars.update(self._parse_memstats(data))
+            expvars |= self._parse_memstats(data)
 
         if self.configuration.get('extra_charts'):
             # the memstats part of the data has been already parsed, so we remove it before flattening and checking
@@ -213,10 +211,10 @@ class Service(UrlService):
                     continue
 
                 try:
-                    if ev.type == 'int':
-                        expvars[ev.id] = int(v)
-                    elif ev.type == 'float':
+                    if ev.type == 'float':
                         expvars[ev.id] = float(v) * 100
+                    elif ev.type == 'int':
+                        expvars[ev.id] = int(v)
                 except ValueError:
                     self.info('Failed to parse value for key {0} as {1}, ignoring key.'.format(ev.key, ev.type))
                     return None

@@ -24,10 +24,10 @@ class MySQLService(SimpleService):
     def __init__(self, configuration=None, name=None):
         SimpleService.__init__(self, configuration=configuration, name=name)
         self.__connection = None
-        self.__conn_properties = dict()
-        self.extra_conn_properties = dict()
-        self.__queries = self.configuration.get('queries', dict())
-        self.queries = dict()
+        self.__conn_properties = {}
+        self.extra_conn_properties = {}
+        self.__queries = self.configuration.get('queries', {})
+        self.queries = {}
 
     def __connect(self):
         try:
@@ -39,7 +39,7 @@ class MySQLService(SimpleService):
 
     def check(self):
         def get_connection_properties(conf, extra_conf):
-            properties = dict()
+            properties = {}
             if conf.get('user'):
                 properties['user'] = conf['user']
             if conf.get('pass'):
@@ -130,7 +130,7 @@ class MySQLService(SimpleService):
             if error:
                 return None
 
-        raw_data = dict()
+        raw_data = {}
         queries = dict(self.queries)
         try:
             cursor = self.__connection.cursor()

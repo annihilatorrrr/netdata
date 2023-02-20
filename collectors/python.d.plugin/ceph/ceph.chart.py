@@ -217,7 +217,7 @@ class Service(SimpleService):
             osd_perf_infos = get_osd_perf_infos(osd_perf)
             pool_stats = self._get_osd_pool_stats()
 
-            data.update(self._get_general(osd_perf_infos, pool_stats))
+            data |= self._get_general(osd_perf_infos, pool_stats)
             for pool in df['pools']:
                 data.update(self._get_pool_usage(pool))
                 data.update(self._get_pool_objects(pool))

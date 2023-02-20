@@ -57,35 +57,46 @@ def pd_charts(pds):
 
 
 def battery_charts(bats):
-    order = list()
-    charts = dict()
+    order = []
+    charts = {}
 
     for b in bats:
         order.append('bbu_{0}_relative_charge'.format(b.id))
-        charts.update(
-            {
-                'bbu_{0}_relative_charge'.format(b.id): {
-                    'options': [None, 'Relative State of Charge', 'percentage', 'battery',
-                                'megacli.bbu_relative_charge', 'line'],
-                    'lines': [
-                        ['bbu_{0}_relative_charge'.format(b.id), 'adapter {0}'.format(b.id)],
-                    ]
-                }
-            }
-        )
+        charts['bbu_{0}_relative_charge'.format(b.id)] = {
+            'options': [
+                None,
+                'Relative State of Charge',
+                'percentage',
+                'battery',
+                'megacli.bbu_relative_charge',
+                'line',
+            ],
+            'lines': [
+                [
+                    'bbu_{0}_relative_charge'.format(b.id),
+                    'adapter {0}'.format(b.id),
+                ],
+            ],
+        }
 
     for b in bats:
         order.append('bbu_{0}_cycle_count'.format(b.id))
-        charts.update(
-            {
-                'bbu_{0}_cycle_count'.format(b.id): {
-                    'options': [None, 'Cycle Count', 'cycle count', 'battery', 'megacli.bbu_cycle_count', 'line'],
-                    'lines': [
-                        ['bbu_{0}_cycle_count'.format(b.id), 'adapter {0}'.format(b.id)],
-                    ]
-                }
-            }
-        )
+        charts['bbu_{0}_cycle_count'.format(b.id)] = {
+            'options': [
+                None,
+                'Cycle Count',
+                'cycle count',
+                'battery',
+                'megacli.bbu_cycle_count',
+                'line',
+            ],
+            'lines': [
+                [
+                    'bbu_{0}_cycle_count'.format(b.id),
+                    'adapter {0}'.format(b.id),
+                ],
+            ],
+        }
 
     return order, charts
 
@@ -177,14 +188,13 @@ class Megacli:
 class Service(ExecutableService):
     def __init__(self, configuration=None, name=None):
         ExecutableService.__init__(self, configuration=configuration, name=name)
-        self.order = list()
-        self.definitions = dict()
+        self.order = []
+        self.definitions = {}
         self.do_battery = self.configuration.get('do_battery')
         self.megacli = Megacli()
 
     def check_sudo(self):
-        err = self._get_raw_data(command=self.megacli.sudo_check, stderr=True)
-        if err:
+        if err := self._get_raw_data(command=self.megacli.sudo_check, stderr=True):
             self.error(''.join(err))
             return False
         return True
@@ -241,9 +251,9 @@ class Service(ExecutableService):
         return True
 
     def get_data(self):
-        data = dict()
+        data = {}
 
-        data.update(self.get_adapter_pd_data())
+        data |= self.get_adapter_pd_data()
 
         if self.do_battery:
             data.update(self.get_battery_data())
@@ -252,13 +262,13 @@ class Service(ExecutableService):
 
     def get_adapter_pd_data(self):
         raw = self._get_raw_data(command=self.megacli.disk_info)
-        data = dict()
+        data = {}
 
         if not raw:
             return data
 
         for a in find_adapters(raw):
-            data.update(a.data())
+            data |= a.data()
 
         for p in find_pds(raw):
             data.update(p.data())
@@ -267,12 +277,12 @@ class Service(ExecutableService):
 
     def get_battery_data(self):
         raw = self._get_raw_data(command=self.megacli.battery_info)
-        data = dict()
+        data = {}
 
         if not raw:
             return data
 
         for b in find_batteries(raw):
-            data.update(b.data())
+            data |= b.data()
 
         return data

@@ -134,7 +134,7 @@ class Service(SocketService):
         data = raw.split('\n')[:2]
         desc = data[0].split('\t')
         vals = data[1].split('\t')
-        ret = dict()
+        ret = {}
         for i, _ in enumerate(desc):
             try:
                 ret[str(desc[i])] = int(vals[i])

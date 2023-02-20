@@ -57,9 +57,7 @@ class RuntimeCounters:
 
 
 def clean_module_name(name):
-    if name.startswith('pythond_'):
-        return name[8:]
-    return name
+    return name[8:] if name.startswith('pythond_') else name
 
 
 class SimpleService(PythonDLimitedLogger, object):
@@ -75,8 +73,8 @@ class SimpleService(PythonDLimitedLogger, object):
         """
         PythonDLimitedLogger.__init__(self)
         self.configuration = configuration
-        self.order = list()
-        self.definitions = dict()
+        self.order = []
+        self.definitions = {}
 
         self.module_name = clean_module_name(self.__module__)
         self.job_name = configuration.pop('job_name')

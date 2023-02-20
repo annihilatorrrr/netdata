@@ -157,9 +157,9 @@ class Service(SimpleService):
     def connect(self):
         try:
             if self.use_tls:
-                self.conn = ldap.initialize('ldaps://%s:%s' % (self.server, self.port))
+                self.conn = ldap.initialize(f'ldaps://{self.server}:{self.port}')
             else:
-                self.conn = ldap.initialize('ldap://%s:%s' % (self.server, self.port))
+                self.conn = ldap.initialize(f'ldap://{self.server}:{self.port}')
             self.conn.set_option(ldap.OPT_NETWORK_TIMEOUT, self.timeout)
             if (self.use_tls or self.use_start_tls) and not self.cert_check:
                 self.conn.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_NEVER)
@@ -192,7 +192,7 @@ class Service(SimpleService):
         if not self.alive and not self.reconnect():
             return None
 
-        data = dict()
+        data = {}
         for key in SEARCH_LIST:
             dn = SEARCH_LIST[key][0]
             attr = SEARCH_LIST[key][1]

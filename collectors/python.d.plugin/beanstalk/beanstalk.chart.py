@@ -184,7 +184,7 @@ class Service(SimpleService):
 
         self.conn = self.connect()
 
-        return True if self.conn else False
+        return bool(self.conn)
 
     def get_data(self):
         """
@@ -194,15 +194,15 @@ class Service(SimpleService):
             return None
 
         active_charts = self.charts.active_charts()
-        data = dict()
+        data = {}
 
         try:
-            data.update(self.conn.stats())
+            data |= self.conn.stats()
 
             for tube in self.conn.tubes():
                 stats = self.conn.stats_tube(tube)
 
-                if tube + '_jobs_rate' not in active_charts:
+                if f'{tube}_jobs_rate' not in active_charts:
                     self.create_new_tube_charts(tube)
 
                 for stat in stats:
@@ -247,6 +247,4 @@ class Service(SimpleService):
             return False
 
     def is_alive(self):
-        if not self.alive:
-            return self.reconnect()
-        return True
+        return True if self.alive else self.reconnect()

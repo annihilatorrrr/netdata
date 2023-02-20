@@ -37,10 +37,7 @@ class Service(SimpleService):
                 df = eval(line_clean)
                 assert isinstance(df, pd.DataFrame), 'The result of each evaluated line of `df_steps` must be of type `pd.DataFrame`'
 
-        # take top row of final df as data to be collected by netdata
-        data = df.to_dict(orient='records')[0]
-
-        return data
+        return df.to_dict(orient='records')[0]
 
     def check(self):
         """ensure charts and dims all configured and that we can get data"""
@@ -51,7 +48,7 @@ class Service(SimpleService):
         if not self.chart_configs:
             self.error('chart_configs must be defined')
 
-        data = dict()
+        data = {}
 
         # add each chart as defined by the config
         for chart_config in self.chart_configs:
@@ -70,7 +67,7 @@ class Service(SimpleService):
                 self.charts.add_chart([chart_config['name']] + chart_template['options'])
 
             data_tmp = self.run_code(chart_config['df_steps'])
-            data.update(data_tmp)
+            data |= data_tmp
 
             for dim in data_tmp:
                 self.charts[chart_config['name']].add_dimension([dim, dim, 'absolute', 1, 1])
@@ -80,10 +77,10 @@ class Service(SimpleService):
     def get_data(self):
         """get data for each chart config"""
 
-        data = dict()
+        data = {}
 
         for chart_config in self.chart_configs:
             data_tmp = self.run_code(chart_config['df_steps'])
-            data.update(data_tmp)
+            data |= data_tmp
 
         return data

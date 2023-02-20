@@ -183,7 +183,7 @@ class Service(UrlService):
 
 
 def fetch_data_(raw_data, metrics):
-    data = dict()
+    data = {}
 
     for metric in metrics:
         value = raw_data

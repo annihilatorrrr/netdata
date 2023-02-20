@@ -138,7 +138,7 @@ class Service(SocketService):
             self.debug("Gearman returned no data")
             raise GearmanReadException()
 
-        workers = list()
+        workers = []
 
         for line in raw.splitlines()[:-1]:
             parts = line.split()
@@ -151,8 +151,7 @@ class Service(SocketService):
             except ValueError:
                 continue
 
-            w = [name]
-            w.extend(values)
+            w = [name, *values]
             workers.append(w)
 
         return workers
@@ -175,7 +174,7 @@ class Service(SocketService):
             for sum_value in ('pending', 'running', 'idle'):
                 output['total_{0}'.format(sum_value)] += job_data['{0}_{1}'.format(job_name, sum_value)]
 
-            output.update(job_data)
+            output |= job_data
 
         return found_jobs, output
 

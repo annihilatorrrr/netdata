@@ -76,11 +76,11 @@ class Service(UrlService):
         try:
             return json.loads(self._get_raw_data())
         except (TypeError, ValueError):
-            return dict()
+            return {}
 
     @staticmethod
     def _recursive_pins(keys):
-        return sum(1 for k in keys if keys[k]['Type'] == b'recursive')
+        return sum(keys[k]['Type'] == b'recursive' for k in keys)
 
     @staticmethod
     def _dehumanize(store_max):
@@ -121,24 +121,18 @@ class Service(UrlService):
                 ],
         }
         if self.do_repoapi:
-            cfg.update({
-                '/api/v0/stats/repo':
-                    [
-                        ('size', 'RepoSize', int),
-                        ('objects', 'NumObjects', int),
-                        ('avail', 'StorageMax', self._storagemax),
-                    ],
-            })
+            cfg['/api/v0/stats/repo'] = [
+                ('size', 'RepoSize', int),
+                ('objects', 'NumObjects', int),
+                ('avail', 'StorageMax', self._storagemax),
+            ]
 
         if self.do_pinapi:
-            cfg.update({
-                '/api/v0/pin/ls':
-                    [
-                        ('pinned', 'Keys', len),
-                        ('recursive_pins', 'Keys', self._recursive_pins),
-                    ]
-            })
-        r = dict()
+            cfg['/api/v0/pin/ls'] = [
+                ('pinned', 'Keys', len),
+                ('recursive_pins', 'Keys', self._recursive_pins),
+            ]
+        r = {}
         for suburl in cfg:
             in_json = self._get_json(suburl)
             for new_key, orig_key, xmute in cfg[suburl]:

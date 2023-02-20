@@ -58,7 +58,7 @@ class Service(SimpleService):
         self.collected_dims = {'probability': set(), 'anomaly': set()}
 
     def check(self):
-        python_version = float('{}.{}'.format(sys.version_info[0], sys.version_info[1]))
+        python_version = float(f'{sys.version_info[0]}.{sys.version_info[1]}')
         if python_version < 3.6:
             self.error("anomalies collector only works with Python>=3.6")
         if len(self.host_charts_dict[self.host]) > 0:
@@ -85,7 +85,17 @@ class Service(SimpleService):
         """Do some initialisation of charts in scope related variables.
         """
         self.charts_regex = re.compile(self.configuration.get('charts_regex','None'))
-        self.charts_available = [c for c in list(requests.get(f'{self.protocol}://{self.host}/api/v1/charts', verify=self.tls_verify).json().get('charts', {}).keys())]
+        self.charts_available = list(
+            list(
+                requests.get(
+                    f'{self.protocol}://{self.host}/api/v1/charts',
+                    verify=self.tls_verify,
+                )
+                .json()
+                .get('charts', {})
+                .keys()
+            )
+        )
         self.charts_in_scope = list(filter(self.charts_regex.match, self.charts_available))
         self.charts_to_exclude = self.configuration.get('charts_to_exclude', '').split(',')
         if len(self.charts_to_exclude) > 0:
@@ -100,11 +110,24 @@ class Service(SimpleService):
             self.custom_models_names = [model['name'] for model in self.custom_models]
             self.custom_models_dims = [i for s in [model['dimensions'].split(',') for model in self.custom_models] for i in s]
             self.custom_models_dims = [dim if '::' in dim else f'{self.host}::{dim}' for dim in self.custom_models_dims]
-            self.custom_models_charts = list(set([dim.split('|')[0].split('::')[1] for dim in self.custom_models_dims]))
-            self.custom_models_hosts = list(set([dim.split('::')[0] for dim in self.custom_models_dims]))
+            self.custom_models_charts = list(
+                {
+                    dim.split('|')[0].split('::')[1]
+                    for dim in self.custom_models_dims
+                }
+            )
+            self.custom_models_hosts = list(
+                {dim.split('::')[0] for dim in self.custom_models_dims}
+            )
             self.custom_models_host_charts_dict = {}
             for host in self.custom_models_hosts:
-                self.custom_models_host_charts_dict[host] = list(set([dim.split('::')[1].split('|')[0] for dim in self.custom_models_dims if dim.startswith(host)]))
+                self.custom_models_host_charts_dict[host] = list(
+                    {
+                        dim.split('::')[1].split('|')[0]
+                        for dim in self.custom_models_dims
+                        if dim.startswith(host)
+                    }
+                )
             self.custom_models_dims_renamed = [f"{model['name']}|{dim}" for model in self.custom_models for dim in model['dimensions'].split(',')]
             self.models_in_scope = list(set([f'{self.host}::{c}' for c in self.charts_in_scope] + self.custom_models_names))
             self.charts_in_scope = list(set(self.charts_in_scope + self.custom_models_charts))
@@ -272,9 +295,8 @@ class Service(SimpleService):
                 arr = np.concatenate((arr, lag(arr_orig, lag_n)), axis=1)
             arr = arr[~np.isnan(arr).any(axis=1)]
 
-        if train:
-            if len(arr) > self.train_max_n:
-                arr = arr[np.random.randint(arr.shape[0], size=self.train_max_n), :]
+        if train and len(arr) > self.train_max_n:
+            arr = arr[np.random.randint(arr.shape[0], size=self.train_max_n), :]
 
         arr = np.nan_to_num(arr)
 

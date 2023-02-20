@@ -130,9 +130,11 @@ class BaseMonitService(object):
         return 'MonitService({0}:{1})'.format(self.type.name, self.name)
 
     def __eq__(self, other):
-        if not isinstance(other, BaseMonitService):
-            return False
-        return self.type == other.type and self.name == other.name
+        return (
+            self.type == other.type and self.name == other.name
+            if isinstance(other, BaseMonitService)
+            else False
+        )
 
     def __ne__(self, other):
         return not self == other
@@ -184,7 +186,7 @@ class ProcessMonitService(BaseMonitService):
             self.threads_key(): self.threads,
             self.children_key(): self.children,
         }
-        data.update(base_data)
+        data |= base_data
 
         return data
 
@@ -210,7 +212,7 @@ class HostMonitService(BaseMonitService):
         base_data = super(HostMonitService, self).data()
         latency = float(self.latency) * 1000000 if self.latency else None
         data = {self.latency_key(): latency}
-        data.update(base_data)
+        data |= base_data
 
         return data
 
@@ -222,7 +224,7 @@ class Service(UrlService):
         self.definitions = CHARTS
         base_url = self.configuration.get('url', "http://localhost:2812")
         self.url = '{0}/_status?format=xml&level=full'.format(base_url)
-        self.active_services = list()
+        self.active_services = []
 
     def parse(self, raw):
         try:
@@ -248,15 +250,15 @@ class Service(UrlService):
         if len(self.charts) > 0:
             self.update_charts(services)
 
-        data = dict()
+        data = {}
 
         for svc in services:
-            data.update(svc.data())
+            data |= svc.data()
 
         return data
 
     def get_services(self, root):
-        services = list()
+        services = []
 
         for typ in TYPES:
             if typ == TYPE_SYSTEM:

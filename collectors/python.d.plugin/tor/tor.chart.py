@@ -57,7 +57,7 @@ class Service(SimpleService):
         if not self.alive and not self.reconnect():
             return None
 
-        data = dict()
+        data = {}
 
         try:
             data['read'] = self.conn.get_info('traffic/read')

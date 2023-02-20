@@ -224,18 +224,18 @@ class Service(UrlService, SocketService):
     def check(self):
         if self.poll.check(self):
             self.create_charts()
-            self.info('We are using %s.' % self.poll.__name__)
+            self.info(f'We are using {self.poll.__name__}.')
             return True
         return False
 
     def _get_data(self):
-        to_netdata = dict()
+        to_netdata = {}
         self.request, self.url = self.options_['stat'], self.options_['stat']
         stat_data = self._get_stat_data()
         self.request, self.url = self.options_['info'], self.options_['info']
         info_data = self._get_info_data(regex=self.options_['regex'])
 
-        to_netdata.update(stat_data)
+        to_netdata |= stat_data
         to_netdata.update(info_data)
         return to_netdata or None
 
@@ -246,15 +246,15 @@ class Service(UrlService, SocketService):
         raw_data = self.poll._get_raw_data(self)
 
         if not raw_data:
-            return dict()
+            return {}
 
         raw_data = raw_data.splitlines()
         self.data = parse_data_([dict(zip(raw_data[0].split(','), raw_data[_].split(',')))
                                  for _ in range(1, len(raw_data))])
         if not self.data:
-            return dict()
+            return {}
 
-        stat_data = dict()
+        stat_data = {}
 
         for frontend in self.data['frontend']:
             for metric in METRICS:
@@ -263,11 +263,21 @@ class Service(UrlService, SocketService):
 
         for backend in self.data['backend']:
             name, idx = backend['# pxname'], backend['# pxname'].replace('.', '_')
-            stat_data['hsup_' + idx] = len([server for server in self.data['servers']
-                                            if server_status(server, name, 'UP')])
-            stat_data['hsdown_' + idx] = len([server for server in self.data['servers']
-                                              if server_status(server, name, 'DOWN')])
-            stat_data['hbdown_' + idx] = 1 if backend.get('status') == 'DOWN' else 0
+            stat_data[f'hsup_{idx}'] = len(
+                [
+                    server
+                    for server in self.data['servers']
+                    if server_status(server, name, 'UP')
+                ]
+            )
+            stat_data[f'hsdown_{idx}'] = len(
+                [
+                    server
+                    for server in self.data['servers']
+                    if server_status(server, name, 'DOWN')
+                ]
+            )
+            stat_data[f'hbdown_{idx}'] = 1 if backend.get('status') == 'DOWN' else 0
             for metric in BACKEND_METRICS:
                 stat_data['_'.join(['backend', metric, idx])] = backend.get(metric) or 0
             hrsp_total = 0
@@ -284,10 +294,10 @@ class Service(UrlService, SocketService):
         """
         raw_data = self.poll._get_raw_data(self)
         if not raw_data:
-            return dict()
+            return {}
 
         match = regex.search(raw_data)
-        return match.groupdict() if match else dict()
+        return match.groupdict() if match else {}
 
     @staticmethod
     def _check_raw_data(data):
@@ -302,26 +312,50 @@ class Service(UrlService, SocketService):
         for front in self.data['frontend']:
             name, idx = front['# pxname'], front['# pxname'].replace('.', '_')
             for metric in METRICS:
-                self.definitions['f' + metric]['lines'].append(['_'.join(['frontend', metric, idx]),
-                                                                name, METRICS[metric]['algorithm'], 1,
-                                                                METRICS[metric]['divisor']])
+                self.definitions[f'f{metric}']['lines'].append(
+                    [
+                        '_'.join(['frontend', metric, idx]),
+                        name,
+                        METRICS[metric]['algorithm'],
+                        1,
+                        METRICS[metric]['divisor'],
+                    ]
+                )
             self.definitions['fhrsp_total']['lines'].append(['_'.join(['frontend', 'hrsp_total', idx]),
                                                              name, 'incremental', 1, 1])
         for back in self.data['backend']:
             name, idx = back['# pxname'], back['# pxname'].replace('.', '_')
             for metric in METRICS:
-                self.definitions['b' + metric]['lines'].append(['_'.join(['backend', metric, idx]),
-                                                                name, METRICS[metric]['algorithm'], 1,
-                                                                METRICS[metric]['divisor']])
+                self.definitions[f'b{metric}']['lines'].append(
+                    [
+                        '_'.join(['backend', metric, idx]),
+                        name,
+                        METRICS[metric]['algorithm'],
+                        1,
+                        METRICS[metric]['divisor'],
+                    ]
+                )
             self.definitions['bhrsp_total']['lines'].append(['_'.join(['backend', 'hrsp_total', idx]),
                                                              name, 'incremental', 1, 1])
             for metric in BACKEND_METRICS:
-                self.definitions['b' + metric]['lines'].append(['_'.join(['backend', metric, idx]),
-                                                                name, BACKEND_METRICS[metric]['algorithm'], 1,
-                                                                BACKEND_METRICS[metric]['divisor']])
-            self.definitions['health_sup']['lines'].append(['hsup_' + idx, name, 'absolute'])
-            self.definitions['health_sdown']['lines'].append(['hsdown_' + idx, name, 'absolute'])
-            self.definitions['health_bdown']['lines'].append(['hbdown_' + idx, name, 'absolute'])
+                self.definitions[f'b{metric}']['lines'].append(
+                    [
+                        '_'.join(['backend', metric, idx]),
+                        name,
+                        BACKEND_METRICS[metric]['algorithm'],
+                        1,
+                        BACKEND_METRICS[metric]['divisor'],
+                    ]
+                )
+            self.definitions['health_sup']['lines'].append(
+                [f'hsup_{idx}', name, 'absolute']
+            )
+            self.definitions['health_sdown']['lines'].append(
+                [f'hsdown_{idx}', name, 'absolute']
+            )
+            self.definitions['health_bdown']['lines'].append(
+                [f'hbdown_{idx}', name, 'absolute']
+            )
 
 
 def parse_data_(data):

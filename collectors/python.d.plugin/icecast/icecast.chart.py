@@ -63,7 +63,7 @@ class Service(UrlService):
         if not sources:
             return None
 
-        data = dict()
+        data = {}
 
         for idx, raw_source in enumerate(sources):
             source = Source(idx, raw_source)
@@ -87,8 +87,7 @@ class Service(UrlService):
             self.error('JSON decode error:', error)
             return None
 
-        sources = data['icestats'].get('source')
-        if not sources:
+        if sources := data['icestats'].get('source'):
+            return sources if isinstance(sources, list) else [sources]
+        else:
             return None
-
-        return sources if isinstance(sources, list) else [sources]
